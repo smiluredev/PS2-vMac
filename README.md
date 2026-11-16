@@ -1,4 +1,4 @@
-# Mini vMac para PlayStation 2
+# PS2-vMac
 
 Port do [Mini vMac](https://github.com/minivmac/minivmac) para PlayStation 2, com vídeo via `gsKit`, áudio via `audsrv` e alvo Macintosh Plus. O código é aberto para colaboração; veja [CONTRIBUTING.md](CONTRIBUTING.md).
 
