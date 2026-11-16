@@ -1,0 +1,30 @@
+# Build output
+/minivmac.elf
+/minivmac.map
+/obj/
+/irx/*.c
+/irx/*.o
+
+# Macintosh ROMs and disk images (copyrighted/user-provided)
+*.ROM
+*.rom
+*.dsk
+*.DSK
+*.img
+*.IMG
+*.image
+*.IMAGE
+*.hfv
+*.HFV
+*.iso
+*.ISO
+
+# Runtime diagnostics
+BOOTLOG.TXT
+bootlog.txt
+*.log
+
+# Local/editor files
+.DS_Store
+*~
+*.swp

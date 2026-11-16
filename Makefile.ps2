@@ -1,0 +1,82 @@
+# Makefile.ps2 - build Mini vMac for the PlayStation 2.
+#
+# Usage:
+#   make -f Makefile.ps2
+#
+# Requires ps2sdk and gsKit.  By default it looks in /usr/local/ps2dev;
+# override PS2DEV or PS2SDK/GSKIT on the command line if yours live
+# somewhere else.
+
+PS2DEV ?= /usr/local/ps2dev
+PS2SDK ?= $(PS2DEV)/ps2sdk
+GSKIT  ?= $(PS2DEV)/gsKit
+
+export PS2DEV
+export PS2SDK
+export GSKIT
+export PATH := $(PS2DEV)/ee/bin:$(PS2DEV)/bin:$(PS2SDK)/bin:$(PATH)
+
+EE_BIN      = minivmac.elf
+EE_OPTFLAGS = -O2 -fno-strict-aliasing -fno-aggressive-loop-optimizations
+EE_WARNFLAGS = -Wall
+
+# Mini vMac emulation core (the portable sources).
+VMAC_SRCS = \
+	MINEM68K GLOBGLUE M68KITAB VIAEMDEV IWMEMDEV SCCEMDEV RTCEMDEV \
+	ROMEMDEV SCSIEMDV SONYEMDV SCRNEMDV MOUSEMDV KBRDEMDV SNDEMDEV \
+	PROGMAIN
+VMAC_SRC_DIR = vendor/minivmac/src
+
+# Platform glue.
+PS2_SRCS = \
+	OSGLUPS2 ps2_platform ps2_video ps2_input ps2_audio
+
+# IOP modules embedded into the ELF.
+IRX_NAMES = \
+	iomanX fileio usbd bdm bdmfs_fatfs usbmass_bd \
+	sio2man padman ps2kbd ps2mouse audsrv
+
+IRX_DIR  = irx
+IRX_SRCS = $(addprefix $(IRX_DIR)/,$(addsuffix _irx.c,$(IRX_NAMES)))
+
+EE_OBJS = \
+	$(addprefix obj/,$(addsuffix .o,$(VMAC_SRCS))) \
+	$(addprefix obj/,$(addsuffix .o,$(PS2_SRCS))) \
+	$(IRX_SRCS:.c=.o)
+
+EE_INCS = -Icfg -I$(VMAC_SRC_DIR) -Isrc -I$(GSKIT)/include
+
+EE_LIBS = \
+	-L$(GSKIT)/lib \
+	-lgskit -ldmakit \
+	-lpad -lkbd -lmouse -laudsrv \
+	-lpatches -ldebug -lcglue -lc -lkernel -lm
+
+include $(PS2SDK)/samples/Makefile.pref
+include $(PS2SDK)/samples/Makefile.eeglobal
+
+# Mini vMac sources live in a different directory from our own code.
+obj/%.o: $(VMAC_SRC_DIR)/%.c
+	@$(MKDIR) -p $(@D)
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
+
+# The 68000 interpreter is sensitive to aggressive loop/alias
+# optimisations on the R5900.  Use the intended conservative -O1 level.
+obj/MINEM68K.o: $(VMAC_SRC_DIR)/MINEM68K.c
+	@$(MKDIR) -p $(@D)
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -O1 -c $< -o $@
+
+# Our own platform code.
+obj/%.o: src/%.c
+	@$(MKDIR) -p $(@D)
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
+
+# bin2c turns each IOP module into a C array called <name>_irx.
+$(IRX_DIR)/%_irx.c: $(PS2SDK)/iop/irx/%.irx
+	@$(MKDIR) -p $(@D)
+	$(PS2SDK)/bin/bin2c $< $@ $*_irx
+
+.PHONY: clean
+clean:
+	rm -f $(EE_OBJS) $(IRX_SRCS) $(EE_BIN) minivmac.map
+	rmdir obj $(IRX_DIR) 2>/dev/null || true
